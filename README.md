@@ -18,6 +18,27 @@ I am Using ATmega 32A Microcontroller and Convert it into an EEProm, You can use
 --------------------------------------------------
 
 --------------------------------------------------
+		     Address_Bus
 	PINA0 - PINA7		Address Bus [Outer Bits] 
 	PINB0 - PINB7		Address Bus [Inner Bits]
+	
+[B7, B6, B5, B4, B3, B2, B1, B0, A7, A6, A5, A4, A3, A2, A1, A0] *
 --------------------------------------------------
+
+*Note: This is the order of Address_Bus and data is start filling from outer-bits to inner-bits
+you can say: 0x0000(0) is a 16-bit Number represents 0 and 0x0001(1) [0000 0000 0000 0001].
+Hence, if you put A0 high and rest of pins low means Address ([1] Decimal) is selected.
+
+--------------------------------------------------
+		      Data_Bus
+	PIND0 - PIND7		Data Bus (8-bit Data)1-byte
+	
+	     [D7, D6, D5, D4, D3, D2, D1, D0]*
+--------------------------------------------------
+
+Hence,
+Address Bus  ->  PORTB , PORTA  [16-bit Bus]
+Data Bus     ->  PORTD		[8-bit Bus]
+Control Bus  ->  PORTC		[8-bit Bus], But we are using only 4-bits to Control Memory.
+
+		    

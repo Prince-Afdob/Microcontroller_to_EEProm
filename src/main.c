@@ -6,6 +6,7 @@
  */ 
 
 #include <avr/io.h>
+#include <stdint.h>
 #include <avr/eeprom.h>
 
 #define H 0xFF
@@ -20,10 +21,14 @@ int main(void)
 {	
 	DDRA = L;		//Address Line 1 [INPUT]
 	DDRB = L;		//Address Line 2 [INPUT]
-	DDRC = 0x0F;	//4-bits are output and 4-bits are Inputs (Inputs are Control Lines[C0-C3])
+	DDRC = 0xF0;	//4-bits are output and 4-bits are Inputs (Inputs are Control Lines[C0-C3])
 	DDRD = H;
-	eeprom_write_byte((uint8_t*)0x00, (uint8_t)0xAA);		//Test Bits [Ignore this] Only for testing purpose.
-	eeprom_write_byte((uint8_t*)0x01, (uint8_t)0x55);		//Test Bits [Ignore this] Only for testing purpose.
+	eeprom_write_byte((uint16_t*)0x0000, (uint8_t)0xAA);		//Test Bits [Ignore this] Only for testing purpose.
+	/*
+				Four Cycles to Set EECR MASTER Write Bit to low [see data_sheet for more details.]
+				*/
+						// Start EEProm write by setting EEWE
+	EECR |= (0 << EEWE);
 	
 	//if(PINC & 0x0B)
 /*	{
@@ -42,54 +47,47 @@ int main(void)
 	C2 -> WE		Write Enable	|
 	C3 -> ED		Erase Data		|
 --------------------------------------------------*/
-
+	
     while (1) 
     {
-	if(PINC & 0x01 || PINC & 0x0F || PINC & 0x03 || PINC & 0x05 || PINC & 0x07 || PINC & 0x09 || PINC & 0x0B || PINC & 0x0D)											//Chip is Enable
+		while(EECR == 0x00)
 		{
-			if(PINC == 0x0D)						//Write Command
+			if(PINC & 0x01 || PINC & 0x0F || PINC & 0x03 || PINC & 0x05 || PINC & 0x07 || PINC & 0x09 || PINC & 0x0B || PINC & 0x0D)											//Chip is Enable
 			{
-																								
+				if(PINC == 0x0D)						//Write Command 0000 1101
+				{																
 				DDRD = L;										//Data Bus Line [INPUT] Write Data
-				uint8_t OUTER_BITS = PINA;
-				uint8_t INNER_BITS = PINB;
-				address = (INNER_BITS << 8) | OUTER_BITS;
-				temp_data = PORTD;
+				address = (PINB << 8) | PINA;
+				temp_data = PIND;
 				eeprom_write_byte((uint16_t*)address, (uint8_t)temp_data);
-			}
+				EECR |= (0<<EEWE);     // Start EEProm write by setting EEWE
+				}
 			
-			 if(PINC == 0x0B)					//Read Command
-			{
+				else if(PINC == 0x0B)					//Read Command 0000 1011
+				{
 	
-				DDRD = H;										//Data Bus Line [OUTPUT] Read Data
-				uint8_t OUTER_BITS = PINA;
-				uint8_t INNER_BITS = PINB;
-				address = (INNER_BITS << 8) | OUTER_BITS;
+				DDRD = H;	
+				address = (PINB << 8) | PINA;								//Data Bus Line [OUTPUT] Read Data
 				byte_read = eeprom_read_byte((uint16_t*)address);
 				PORTD = byte_read;
-			}
+				}
 			
-			else if (PINC == 0x05)	//Erase Selected Address
-			{
+				else if (PINC & 0x05)	//Erase Selected Address
+				{
 				DDRD = L;										//Data Bus Line [INPUT] Write Data
-				uint8_t OUTER_BITS = PINA;
-				uint8_t INNER_BITS = PINB;
-				address = (INNER_BITS << 8) | OUTER_BITS;
+				address = (PINB << 8) | PINA;
 				eeprom_write_byte((uint16_t*)address, (uint8_t)0x00);
+				/*
+				Four Cycles to Set EECR MASTER Write Bit to low [see data_sheet for more details.]
+				*/
+				asm("NOP");
+				asm("NOP");
+				asm("NOP");
+				asm("NOP");
+				EECR |= (1 << EEWE);
+				}
 			}
-			else
-			{
-																//Whatever else happen we don't Care a single bit
-			}
+	
 		}
-	
-	else
-	{
-		//This is only for Security Purpose. this do nothing in any other Case.
 	}
-	
-	}
-    }	
-
 }
-
